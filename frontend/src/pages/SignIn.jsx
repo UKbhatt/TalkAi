@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Eye, EyeOff } from 'lucide-react';
 import { loginUser, clearError } from '../store/authSlice';
 
-const Login = () => {
+const SigIn = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { isAuthenticated, loading, error } = useSelector((state) => state.auth);

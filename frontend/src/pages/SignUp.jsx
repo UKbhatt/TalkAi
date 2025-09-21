@@ -70,7 +70,7 @@ const SignUp = () => {
       })).unwrap();
       navigate('/dashboard');
     } catch (error) {
-      console.error('Registration failed:', error);
+      console.error('Registration error:', error);
     }
   };
 

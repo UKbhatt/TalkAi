@@ -1,4 +1,3 @@
-// --- env first, from backend/.env ---
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -28,7 +27,6 @@ const io = new Server(server, {
   }
 });
 
-// --- CORS FIRST (so preflight gets headers) ---
 app.use(cors({
   origin: FRONTEND_ORIGIN,
   credentials: true,
@@ -36,15 +34,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization']
 }));
 
-// Security/observability
 app.use(helmet());
 app.use(morgan('combined'));
 
-// Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting (after CORS/body)
+
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
@@ -52,7 +48,6 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// --- MongoDB Atlas connect (no deprecated options / no localhost fallback) ---
 const uri = process.env.MONGODB_URI;
 if (!uri) {
   console.error('❌ MONGODB_URI is missing (backend/.env)');
@@ -62,17 +57,14 @@ mongoose.connect(uri)
   .then(() => console.log('✅ Connected to MongoDB (Atlas)'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', authenticateToken, chatRoutes);
 app.use('/api/user', authenticateToken, userRoutes);
 
-// Health
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
 
-// Socket auth (optional: add JWT verify here)
 io.use((socket, next) => {
   const token = socket.handshake?.auth?.token;
   if (!token) return next(new Error('Authentication error'));
@@ -92,7 +84,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!', error: process.env.NODE_ENV === 'development' ? err.message : {} });
 });
 
-// 404 (avoid '*' wildcard)
+
 app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
 
 const PORT = process.env.PORT || 5000;

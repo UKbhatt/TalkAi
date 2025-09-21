@@ -9,7 +9,7 @@ const SigIn = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, loading, error } = useSelector((state) => state.auth);
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -66,18 +66,18 @@ const SigIn = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-xs font-semibold text-gray-900 mb-2">
-                Username
+               <label htmlFor="email" className="block text-xs font-semibold text-gray-900 mb-2">
+                Email
               </label>
               <input
-                id="username"
-                name="username"
-                type="text"
+                id="email"
+                name="email"
+                type="email"
                 required
-                value={formData.username}
+                value={formData.email}
                 onChange={handleChange}
                 className="w-full px-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500 text-sm"
-                placeholder="Enter your username"
+                placeholder="Enter your email"
               />
             </div>
 

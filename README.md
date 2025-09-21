@@ -28,6 +28,45 @@
 - 🧪 **DX** — Vite fast dev, ESLint, consistent scripts
 
 ---
+## 🌍 Live Demo / Testing
+
+Once deployed, you can try the project here:
+
+🔗 **Frontend (React App)**: [https://your-frontend-domain.com](https://talk-ai-two.vercel.app)  
+🔗 **Backend API (Express + MongoDB)**: [https://your-backend-domain.com/api/health](https://talkai-bw5a.onrender.com)
+
+### 🧪 Test Accounts
+
+You can use the following test credentials to explore the app:
+
+Email: admin13@gmail.com
+
+Password: Ad123456
+
+
+> ⚠️ Note: Test accounts are for demo purposes only. Please do not use sensitive data.
+
+### 📌 Example API Requests
+
+```bash
+# Register a new account
+curl -X POST https://your-backend-domain.com/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo2@example.com","username":"demo2","password":"Demo@123"}'
+
+# Login (get JWT)
+curl -X POST https://your-backend-domain.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com","password":"Demo@123"}'
+```
+After logging in, copy the returned token and use it in requests:
+```
+
+# Get current user profile
+curl -X GET https://your-backend-domain.com/api/user/me \
+  -H "Authorization: Bearer <token>"
+```
+---
 
 ## 📂 File Structure
 

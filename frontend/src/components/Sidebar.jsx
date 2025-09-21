@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Plus, MessageSquare, ChevronLeft, ChevronRight, MoreVertical, Trash2, Edit3 } from 'lucide-react';
-import { 
-  setActiveConversation, 
+import {
+  setActiveConversation,
   setMessages,
   fetchConversations,
   fetchMessages,
@@ -15,19 +15,19 @@ const Sidebar = () => {
   const dispatch = useDispatch();
   const { conversations, activeConversation, loading } = useSelector((state) => state.chat);
   const { sidebarCollapsed } = useSelector((state) => state.ui);
-  
+
   const [hoveredConversation, setHoveredConversation] = useState(null);
   const [menuOpen, setMenuOpen] = useState(null);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [conversationToRename, setConversationToRename] = useState(null);
 
-  // Fetch conversations on component mount
+
   useEffect(() => {
     dispatch(fetchConversations());
   }, [dispatch]);
 
-  // Close menus when clicking outside
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuOpen && !event.target.closest('.context-menu-container')) {
@@ -47,11 +47,8 @@ const Sidebar = () => {
   }, [menuOpen, showRenameDialog]);
 
   const handleNewChat = () => {
-    // Clear active conversation so that when user sends first message,
-    // it will create a new conversation with the user's prompt as title
     dispatch(setActiveConversation(null));
-    
-    // Close sidebar on mobile after starting new chat
+
     if (window.innerWidth < 1024) {
       dispatch(toggleSidebar());
     }
@@ -59,15 +56,13 @@ const Sidebar = () => {
 
   const handleConversationClick = async (conversationId) => {
     dispatch(setActiveConversation(conversationId));
-    
-    // Fetch messages for the selected conversation from API
+
     try {
       await dispatch(fetchMessages({ conversationId })).unwrap();
     } catch (error) {
       console.error('Failed to fetch messages:', error);
     }
-    
-    // Close sidebar on mobile after selecting conversation
+
     if (window.innerWidth < 1024) {
       dispatch(toggleSidebar());
     }
@@ -75,18 +70,17 @@ const Sidebar = () => {
 
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Just now';
-    
+
     const date = new Date(timestamp);
-    
-    // Check if date is valid
+
     if (isNaN(date.getTime())) {
       return 'Just now';
     }
-    
+
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
     const isYesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toDateString() === date.toDateString();
-    
+
     if (isToday) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (isYesterday) {
@@ -121,12 +115,12 @@ const Sidebar = () => {
     if (renameValue.trim() && conversationToRename) {
       try {
         console.log('Attempting to rename conversation:', conversationToRename.id, 'to:', renameValue.trim());
-        
+
         await dispatch(updateConversation({
           id: conversationToRename.id,
           title: renameValue.trim()
         })).unwrap();
-        
+
         console.log('Conversation renamed successfully');
       } catch (error) {
         console.error('Failed to rename conversation:', error);
@@ -187,19 +181,17 @@ const Sidebar = () => {
             {conversations.map((conversation) => (
               <div
                 key={conversation.id}
-                className={`relative group rounded-xl transition-all duration-300 ease-in-out ${
-                  activeConversation === conversation.id
+                className={`relative group rounded-xl transition-all duration-300 ease-in-out ${activeConversation === conversation.id
                     ? 'bg-blue-50 border-2 border-blue-200 shadow-sm'
                     : 'hover:bg-gray-50 border-2 border-transparent'
-                }`}
+                  }`}
                 onMouseEnter={() => setHoveredConversation(conversation.id)}
                 onMouseLeave={() => setHoveredConversation(null)}
               >
                 <button
                   onClick={() => handleConversationClick(conversation.id)}
-                  className={`w-full text-left transition-all duration-300 ease-in-out ${
-                    sidebarCollapsed ? 'p-1.5 flex justify-center' : 'p-3'
-                  }`}
+                  className={`w-full text-left transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'p-1.5 flex justify-center' : 'p-3'
+                    }`}
                   title={sidebarCollapsed ? conversation.title : ''}
                 >
                   {sidebarCollapsed ? (
@@ -224,8 +216,7 @@ const Sidebar = () => {
                     </div>
                   )}
                 </button>
-                
-                {/* 3-dot menu - only show on hover and when not collapsed */}
+
                 {!sidebarCollapsed && hoveredConversation === conversation.id && (
                   <button
                     onClick={(e) => handleMenuClick(e, conversation.id)}
@@ -234,12 +225,11 @@ const Sidebar = () => {
                     <MoreVertical size={16} />
                   </button>
                 )}
-                
-                {/* Context Menu */}
+
                 {menuOpen === conversation.id && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
+                    <div
+                      className="fixed inset-0 z-10"
                       onClick={() => setMenuOpen(null)}
                     />
                     <div className="context-menu-container absolute right-2 top-8 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
@@ -266,12 +256,10 @@ const Sidebar = () => {
           </div>
         )}
       </div>
-      
-      {/* Rename Dialog */}
       {showRenameDialog && (
         <>
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-50" 
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
             onClick={() => setShowRenameDialog(false)}
           />
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">

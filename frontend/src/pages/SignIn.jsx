@@ -14,14 +14,13 @@ const SignIn = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already authenticated
+  //  if already authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
-  // Clear error when component unmounts or form changes
   React.useEffect(() => {
     return () => {
       dispatch(clearError());
@@ -45,7 +44,7 @@ const SignIn = () => {
       await dispatch(loginUser(formData)).unwrap();
       navigate('/dashboard');
     } catch (error) {
-      // Error is handled by the auth slice
+      // Error 
       console.error('Login failed:', error);
     }
   };

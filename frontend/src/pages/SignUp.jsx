@@ -18,7 +18,6 @@ const SignUp = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  // Password validation checks
   const passwordChecks = {
     length: formData.password.length >= 8,
     uppercase: /[A-Z]/.test(formData.password),
@@ -26,14 +25,12 @@ const SignUp = () => {
     number: /\d/.test(formData.password)
   };
 
-  // Redirect if already authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
-  // Clear error when component unmounts
   React.useEffect(() => {
     return () => {
       dispatch(clearError());
@@ -149,7 +146,7 @@ const SignUp = () => {
                 </button>
               </div>
               
-              {/* Password Requirements */}
+              {/* Password */}
               {formData.password && (
                 <div className="mt-3 space-y-2">
                   <div className={`flex items-center space-x-2 text-sm ${passwordChecks.length ? 'text-green-600' : 'text-red-500'}`}>

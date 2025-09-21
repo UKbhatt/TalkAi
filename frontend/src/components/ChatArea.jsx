@@ -35,7 +35,7 @@ const ChatArea = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Cleanup timeout on unmount
+
   useEffect(() => {
     return () => {
       if (hoverTimeoutRef.current) {
@@ -44,7 +44,7 @@ const ChatArea = () => {
     };
   }, []);
 
-  // Auto-resize textarea
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -63,7 +63,7 @@ const ChatArea = () => {
       conversationId: activeConversation,
     };
 
-    // If no active conversation, create one
+    // create new conversation
     if (!activeConversation) {
       const newConversation = {
         id: Date.now(),
@@ -81,24 +81,20 @@ const ChatArea = () => {
     console.log('Setting typing to true');
     dispatch(setTyping(true));
 
-    // Deduct credits
     const currentCredits = user?.credits || 1250;
     dispatch(updateCredits(currentCredits - 1));
 
-    // Get AI response
     try {
       const conversationHistory = conversationMessages.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.content
       }));
 
-      // Create a cancellable promise for AI response
       const aiResponsePromise = aiService.generateResponse(inputValue, conversationHistory);
       aiResponseRef.current = aiResponsePromise;
 
       const aiResponse = await aiResponsePromise;
       
-      // Check if the response was cancelled
       if (isPaused) {
         dispatch(setTyping(false));
         return;
@@ -184,10 +180,7 @@ const ChatArea = () => {
     if (isTyping) {
       setIsPaused(true);
       dispatch(setTyping(false));
-      // Cancel the AI response if possible
       if (aiResponseRef.current) {
-        // Note: This is a simplified approach. In a real implementation,
-        // you might want to use AbortController for proper cancellation
         console.log('Pausing AI response');
       }
     }
@@ -200,7 +193,6 @@ const ChatArea = () => {
     <div className="flex-1 flex flex-col bg-gray-50 min-h-0">
       <div className="flex-1 overflow-y-auto">
         {conversationMessages.length === 0 ? (
-          // Empty State
           <div className="h-full flex flex-col items-center justify-center p-4 lg:p-8 text-center">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-6 shadow-lg">
               <Sparkles size={28} className="text-white" />
@@ -228,7 +220,6 @@ const ChatArea = () => {
             </div>
           </div>
         ) : (
-          // Messages
           <div className="p-3 lg:p-6 space-y-4 max-w-3xl mx-auto w-full">
             {conversationMessages.map((message) => (
               <div
@@ -265,7 +256,6 @@ const ChatArea = () => {
                     <p className="whitespace-pre-wrap leading-relaxed text-sm">{message.content}</p>
                   </div>
                   
-                  {/* Action buttons for AI messages - positioned below the dialog box */}
                   {message.sender === 'ai' && (
                     <div className="flex items-center space-x-1.5 mt-2 opacity-100 transition-opacity duration-300">
                       <button
@@ -343,7 +333,6 @@ const ChatArea = () => {
         )}
       </div>
 
-      {/* Input Area - Matching Figma Design */}
       <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
         <div className="max-w-4xl mx-auto">
           <div className="relative bg-gray-100 rounded-2xl border border-gray-200 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 transition-all duration-200">

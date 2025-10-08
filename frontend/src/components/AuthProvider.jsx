@@ -14,7 +14,7 @@ const AuthProvider = ({ children }) => {
           await dispatch(getCurrentUser()).unwrap();
         } catch (error) {
           console.error('Failed to get current user:', error);
-          // Token invalid
+          
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
         }

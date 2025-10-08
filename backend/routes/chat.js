@@ -2,7 +2,6 @@ const express = require('express');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
-const aiResponse = await generateAIResponse(content, conversationId);
 const { validateMessage, validateConversation } = require('../middleware/validation');
 
 const router = express.Router();

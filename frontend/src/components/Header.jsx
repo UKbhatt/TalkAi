@@ -1,11 +1,13 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Bell, ChevronDown, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, ChevronDown, User, CreditCard } from 'lucide-react';
 import { toggleNotificationPanel, markAllNotificationsRead } from '../store/uiSlice';
 import { logout } from '../store/authSlice';
 
 const Header = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { notificationPanelOpen, notifications } = useSelector((state) => state.ui);
   
@@ -18,6 +20,11 @@ const Header = () => {
 
   const handleMarkAllRead = () => {
     dispatch(markAllNotificationsRead());
+  };
+
+  const handlePurchaseCredits = () => {
+    setUserDropdownOpen(false);
+    navigate('/purchase-credits');
   };
 
   return (
@@ -121,7 +128,7 @@ const Header = () => {
                 className="fixed inset-0 z-10" 
                 onClick={() => setUserDropdownOpen(false)}
               />
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-20">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-20">
                 <div className="px-3 py-2 border-b border-gray-100">
                   <p className="text-xs font-semibold text-gray-900 truncate">
                     {user?.username || user?.email || 'akshaykashyap7879@gmail.com'}
@@ -129,8 +136,15 @@ const Header = () => {
                   <p className="text-xs text-gray-500 mt-1">Free Plan</p>
                 </div>
                 <button
+                  onClick={handlePurchaseCredits}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 flex items-center space-x-2"
+                >
+                  <CreditCard size={16} />
+                  <span>Purchase Credits</span>
+                </button>
+                <button
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors duration-200"
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
                 >
                   Sign Out
                 </button>

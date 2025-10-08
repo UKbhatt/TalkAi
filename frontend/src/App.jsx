@@ -6,6 +6,8 @@ import AuthProvider from './components/AuthProvider';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import Dashboard from './pages/Dashboard';
+import PurchaseCredits from './pages/PurchaseCredits';
+import PurchaseSuccess from './pages/PurchaseSuccess';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -22,6 +24,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/purchase-credits"
+                element={
+                  <ProtectedRoute>
+                    <PurchaseCredits />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/purchase-success"
+                element={
+                  <ProtectedRoute>
+                    <PurchaseSuccess />
                   </ProtectedRoute>
                 } 
               />

@@ -57,6 +57,15 @@ const userSchema = new mongoose.Schema({
         default: true
       }
     }
+  },
+  stripeCustomerId: {
+    type: String,
+    sparse: true
+  },
+  totalPurchased: {
+    type: Number,
+    default: 0,
+    min: [0, 'Total purchased cannot be negative']
   }
 }, {
   timestamps: true

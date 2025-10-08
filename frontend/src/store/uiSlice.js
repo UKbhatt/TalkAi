@@ -15,7 +15,7 @@ const initialState = {
       id: 2,
       type: 'feature',
       message: "New conversation export feature is now available.",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), 
       read: false,
     }
   ],

@@ -13,6 +13,7 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const userRoutes = require('./routes/user');
+const paymentRoutes = require('./routes/payment');
 const { authenticateToken } = require('./middleware/auth');
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3001';
@@ -60,6 +61,7 @@ mongoose.connect(uri)
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', authenticateToken, chatRoutes);
 app.use('/api/user', authenticateToken, userRoutes);
+app.use('/api/payment', authenticateToken, paymentRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() });

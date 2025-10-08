@@ -47,9 +47,6 @@ const Header = () => {
           <span className="font-semibold" style={{ fontSize: '12px' }}>
             {user?.credits !== undefined && user?.credits !== null ? user.credits.toLocaleString() : '1,250'}
           </span>
-          {user?.credits !== undefined && (
-            <span className="ml-1 text-xs text-green-600">✓</span>
-          )}
         </div>
 
         <div className="relative">

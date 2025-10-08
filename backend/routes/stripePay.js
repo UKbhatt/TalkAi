@@ -143,7 +143,17 @@ router.get('/verify-session/:sessionId', async (req, res) => {
     }
 
     const previousCredits = Number(userBefore.credits || 0);
-    const creditsToAdd = 500; // ← your fixed increment
+    
+    const plan = get(txn.planId);
+    if (!plan) {
+      console.error(`❌ Plan not found: ${txn.planId}`);
+      return res.status(400).json({
+        message: 'Invalid plan configuration',
+        code: 'INVALID_PLAN',
+      });
+    }
+    
+    const creditsToAdd = Number(plan.credits);
 
     txn.status = 'paid';
     txn.pending = false;
@@ -198,7 +208,7 @@ router.get('/verify-session/:sessionId', async (req, res) => {
     console.log(`✨ New Credits: ${newCredits}`);
 
     return res.json({
-      message: 'Payment verified and credits added successfully (+500)',
+      message: `Payment verified and credits added successfully (+${creditsToAdd})`,
       transaction: {
         id: txn._id,
         status: txn.status,

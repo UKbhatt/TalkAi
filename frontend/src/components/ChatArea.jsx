@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Send, User, Bot, Sparkles, Search, Copy, ThumbsUp, ThumbsDown, MoreHorizontal, Pause } from 'lucide-react';
-import { addMessage, setTyping, addConversation, setActiveConversation } from '../store/chatSlice';
+import { fetchConversations, createConversation, fetchMessages, setActiveConversation, setMessages, addMessage, setTyping } from '../store/chatSlice';
 import { updateCredits } from '../store/authSlice';
+import apiService from '../services/api';
 import aiService from '../services/aiService';
 
 const ChatArea = () => {
@@ -52,83 +53,97 @@ const ChatArea = () => {
     }
   }, [inputValue]);
 
+  useEffect(() => {
+    dispatch(fetchConversations());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (activeConversation) {
+      dispatch(fetchMessages({ conversationId: activeConversation }));
+    } else {
+      dispatch(setMessages([]));
+    }
+  }, [activeConversation, dispatch]);
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
-
-    const userMessage = {
-      id: Date.now(),
-      content: inputValue,
-      sender: 'user',
-      timestamp: new Date().toISOString(),
-      conversationId: activeConversation,
-    };
-
-    // create new conversation
-    if (!activeConversation) {
-      const newConversation = {
-        id: Date.now(),
-        title: inputValue.substring(0, 50) + (inputValue.length > 50 ? '...' : ''),
-        timestamp: new Date().toISOString(),
-        preview: inputValue.substring(0, 100),
-      };
-      dispatch(addConversation(newConversation));
-      dispatch(setActiveConversation(newConversation.id));
-      userMessage.conversationId = newConversation.id;
+    
+    if (user?.credits < 1) {
+      alert('Insufficient credits. Please upgrade your plan to continue chatting.');
+      return;
     }
 
-    dispatch(addMessage(userMessage));
+    const messageContent = inputValue;
     setInputValue('');
-    console.log('Setting typing to true');
+    
+    const tempUserMessage = {
+      id: 'temp-' + Date.now(),
+      content: messageContent,
+      role: 'user',
+      createdAt: new Date().toISOString()
+    };
+    dispatch(addMessage(tempUserMessage));
     dispatch(setTyping(true));
 
-    const currentCredits = user?.credits || 1250;
-    dispatch(updateCredits(currentCredits - 1));
-
     try {
-      const conversationHistory = conversationMessages.map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'assistant',
-        content: msg.content
+      let conversationId = activeConversation;
+
+      if (!conversationId) {
+        const title = messageContent.substring(0, 50) + (messageContent.length > 50 ? '...' : '');
+        const result = await dispatch(createConversation(title)).unwrap();
+        conversationId = result.id;
+        dispatch(setActiveConversation(conversationId));
+      }
+
+      const userMessageResponse = await apiService.request(`/chat/conversations/${conversationId}/messages-user`, {
+        method: 'POST',
+        body: JSON.stringify({ content: messageContent })
+      });
+
+      if (userMessageResponse.credits !== undefined) {
+        dispatch(updateCredits(userMessageResponse.credits));
+      }
+
+      dispatch(setMessages(messages.filter(m => m.id !== tempUserMessage.id)));
+      dispatch(addMessage({
+        id: userMessageResponse.message.id,
+        content: userMessageResponse.message.content,
+        role: 'user',
+        createdAt: userMessageResponse.message.createdAt
       }));
 
-      const aiResponsePromise = aiService.generateResponse(inputValue, conversationHistory);
-      aiResponseRef.current = aiResponsePromise;
+      const conversationHistory = messages
+        .filter(m => m.id !== tempUserMessage.id)
+        .map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        }));
 
-      const aiResponse = await aiResponsePromise;
-      
-      if (isPaused) {
-        dispatch(setTyping(false));
-        return;
-      }
-      
-      const aiMessage = {
-        id: Date.now() + 1,
-        content: aiResponse,
-        sender: 'ai',
-        timestamp: new Date().toISOString(),
-        conversationId: activeConversation || userMessage.conversationId,
-      };
-      
-      dispatch(addMessage(aiMessage));
+      const aiResponse = await aiService.generateResponse(messageContent, conversationHistory);
+
+      const aiMessageResponse = await apiService.request(`/chat/conversations/${conversationId}/messages-ai`, {
+        method: 'POST',
+        body: JSON.stringify({ content: aiResponse })
+      });
+
+      dispatch(addMessage({
+        id: aiMessageResponse.message.id,
+        content: aiMessageResponse.message.content,
+        role: 'assistant',
+        createdAt: aiMessageResponse.message.createdAt
+      }));
+
     } catch (error) {
-      if (isPaused) {
-        console.log('AI response was paused');
-        dispatch(setTyping(false));
-        return;
-      }
-      console.error('AI response error:', error);
+      console.error('Send message error:', error);
       const errorMessage = {
-        id: Date.now() + 1,
+        id: 'error-' + Date.now(),
         content: "I'm sorry, I'm having trouble responding right now. Please try again.",
-        sender: 'ai',
-        timestamp: new Date().toISOString(),
-        conversationId: activeConversation || userMessage.conversationId,
+        role: 'assistant',
+        createdAt: new Date().toISOString()
       };
       dispatch(addMessage(errorMessage));
     } finally {
-      console.log('Setting typing to false');
       dispatch(setTyping(false));
-      setIsPaused(false);
-      aiResponseRef.current = null;
     }
   };
 
@@ -173,7 +188,7 @@ const ChatArea = () => {
   const handleMouseLeave = () => {
     hoverTimeoutRef.current = setTimeout(() => {
       setHoveredMessageId(null);
-    }, 2000); // Hide after 2 seconds
+    }, 2000);
   };
 
   const handlePause = () => {
@@ -187,7 +202,13 @@ const ChatArea = () => {
   };
 
   const currentConversation = conversations.find(c => c.id === activeConversation);
-  const conversationMessages = messages.filter(m => m.conversationId === activeConversation);
+  const conversationMessages = messages.map(msg => ({
+    id: msg.id,
+    content: msg.content,
+    sender: msg.role === 'user' ? 'user' : 'ai',
+    timestamp: msg.createdAt || msg.timestamp,
+    conversationId: activeConversation
+  }));
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50 min-h-0">

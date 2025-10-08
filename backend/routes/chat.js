@@ -2,7 +2,7 @@ const express = require('express');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
-const Notification = require('../models/Notification');
+const aiResponse = await generateAIResponse(content, conversationId);
 const { validateMessage, validateConversation } = require('../middleware/validation');
 
 const router = express.Router();
@@ -72,7 +72,6 @@ router.get('/conversations/:conversationId/messages', async (req, res) => {
     const { conversationId } = req.params;
     const { page = 1, limit = 50 } = req.query;
 
-    // Verify conversation belongs to user
     const conversation = await Conversation.findOne({
       _id: conversationId,
       userId: req.user._id,
@@ -117,12 +116,11 @@ router.get('/conversations/:conversationId/messages', async (req, res) => {
   }
 });
 
-router.post('/conversations/:conversationId/messages', validateMessage, async (req, res) => {
+router.post('/conversations/:conversationId/messages-user', validateMessage, async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { content } = req.body;
 
-    // Checking credits
     if (req.user.credits < 1) {
       return res.status(402).json({
         message: 'Insufficient credits',
@@ -160,7 +158,118 @@ router.post('/conversations/:conversationId/messages', validateMessage, async (r
       $inc: { credits: -1 }
     });
 
-    const aiResponse = await generateAIResponse(content, conversation.settings);
+    const updatedUser = await User.findById(req.user._id).select('credits');
+
+    res.json({
+      message: {
+        id: userMessage._id,
+        content: userMessage.content,
+        role: userMessage.role,
+        createdAt: userMessage.createdAt
+      },
+      credits: updatedUser.credits
+    });
+
+  } catch (error) {
+    console.error('Save user message error:', error);
+    res.status(500).json({
+      message: 'Failed to save message',
+      code: 'SAVE_MESSAGE_ERROR'
+    });
+  }
+});
+
+router.post('/conversations/:conversationId/messages-ai', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { content } = req.body;
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      userId: req.user._id,
+      isActive: true
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        message: 'Conversation not found',
+        code: 'CONVERSATION_NOT_FOUND'
+      });
+    }
+
+    const aiMessage = new Message({
+      conversationId,
+      userId: req.user._id,
+      content,
+      role: 'assistant'
+    });
+
+    await aiMessage.save();
+
+    conversation.metadata.messageCount += 1;
+    conversation.metadata.lastMessageAt = new Date();
+    await conversation.save();
+
+    res.json({
+      message: {
+        id: aiMessage._id,
+        content: aiMessage.content,
+        role: aiMessage.role,
+        createdAt: aiMessage.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Save AI message error:', error);
+    res.status(500).json({
+      message: 'Failed to save AI message',
+      code: 'SAVE_AI_MESSAGE_ERROR'
+    });
+  }
+});
+
+router.post('/conversations/:conversationId/messages', validateMessage, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { content } = req.body;
+
+    if (req.user.credits < 1) {
+      return res.status(402).json({
+        message: 'Insufficient credits',
+        code: 'INSUFFICIENT_CREDITS'
+      });
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      userId: req.user._id,
+      isActive: true
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        message: 'Conversation not found',
+        code: 'CONVERSATION_NOT_FOUND'
+      });
+    }
+
+    const userMessage = new Message({
+      conversationId,
+      userId: req.user._id,
+      content,
+      role: 'user'
+    });
+
+    await userMessage.save();
+
+    conversation.metadata.messageCount += 1;
+    conversation.metadata.lastMessageAt = new Date();
+    await conversation.save();
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $inc: { credits: -1 }
+    });
+
 
     const aiMessage = new Message({
       conversationId,
@@ -286,27 +395,36 @@ router.delete('/conversations/:conversationId', async (req, res) => {
   }
 });
 
-async function generateAIResponse(userMessage, settings) {
-  const processingTime = Math.random() * 2000 + 500;
+async function generateAIResponse(userMessage, conversationId) {
+  const startTime = Date.now();
   
-  await new Promise(resolve => setTimeout(resolve, processingTime));
-
-  const responses = [
+  try {
+    const messages = await Message.find({ conversationId })
+      .sort({ createdAt: 1 })
+      .limit(20); 
+      
+      const processingTime = Date.now() - startTime;
+    
+    const responses = [
     "That's an interesting question! Let me help you with that.",
-    "I understand what you're asking. Here's my perspective on this topic.",
-    "Great question! This is a complex topic that requires careful consideration.",
-    "I'd be happy to help you explore this further. Let me break it down for you.",
-    "That's a thoughtful inquiry. Here's what I think about this subject."
-  ];
+      "I understand what you're asking. Here's my perspective on this topic.",
+      "Great question! This is a complex topic that requires careful consideration.",
+      "I'd be happy to help you explore this further. Let me break it down for you.",
+      "That's a thoughtful inquiry. Here's what I think about this subject."
+    ];
 
-  const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-  const tokens = Math.floor(Math.random() * 100) + 50; 
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    const tokens = Math.floor(Math.random() * 100) + 50;
 
-  return {
-    content: `${randomResponse}\n\nThis is a mock AI response. In a real application, this would be connected to an actual AI service like OpenAI's GPT or Anthropic's Claude. The response would be generated based on the conversation context and user's message.`,
-    tokens,
-    processingTime: Math.round(processingTime)
-  };
+    return {
+      content: randomResponse,
+      tokens,
+      processingTime: Math.round(processingTime)
+    };
+  } catch (error) {
+    console.error('AI response generation error:', error);
+    throw error;
+  }
 }
 
 module.exports = router;

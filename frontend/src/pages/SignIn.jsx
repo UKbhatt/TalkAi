@@ -57,7 +57,6 @@ const SignIn = () => {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Sign In</h1>
             <p className="text-gray-600 text-sm">Enter your credentials to access your account</p>
           </div>
-
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs">
               {error}

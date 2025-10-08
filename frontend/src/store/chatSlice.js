@@ -166,8 +166,19 @@ const chatSlice = createSlice({
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.isTyping = false;
-        state.messages.push(action.payload.userMessage);
-        state.messages.push(action.payload.aiMessage);
+        state.messages.push({
+          id: action.payload.userMessage.id,
+          content: action.payload.userMessage.content,
+          role: action.payload.userMessage.role,
+          createdAt: action.payload.userMessage.createdAt
+        });
+        state.messages.push({
+          id: action.payload.aiMessage.id,
+          content: action.payload.aiMessage.content,
+          role: action.payload.aiMessage.role,
+          createdAt: action.payload.aiMessage.createdAt,
+          metadata: action.payload.aiMessage.metadata
+        });
         state.error = null;
       })
       .addCase(sendMessage.rejected, (state, action) => {
@@ -198,12 +209,12 @@ const chatSlice = createSlice({
   },
 });
 
-export const { 
-  setConversations, 
-  setActiveConversation, 
-  setMessages, 
-  addMessage, 
-  addConversation, 
+export const {
+  setConversations,
+  setActiveConversation,
+  setMessages,
+  addMessage,
+  addConversation,
   setTyping,
   clearError,
   clearAllChatData

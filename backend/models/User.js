@@ -28,6 +28,20 @@ const userSchema = new mongoose.Schema({
     default: 1250,
     min: [0, 'Credits cannot be negative']
   },
+  purchaseFlags: {
+    starter: {
+      type: Boolean,
+      default: false
+    },
+    pro: {
+      type: Boolean,
+      default: false
+    },
+    ultimate: {
+      type: Boolean,
+      default: false
+    }
+  },
   plan: {
     type: String,
     enum: ['free', 'premium', 'pro'],

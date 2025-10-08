@@ -11,7 +11,9 @@ const AuthProvider = ({ children }) => {
       
       if (token) {
         try {
+          console.log('🔐 AuthProvider: Fetching current user...');
           await dispatch(getCurrentUser()).unwrap();
+          console.log('🔐 AuthProvider: User data loaded successfully');
         } catch (error) {
           console.error('Failed to get current user:', error);
           

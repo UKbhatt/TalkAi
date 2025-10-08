@@ -37,11 +37,7 @@ function App() {
               />
               <Route 
                 path="/purchase-success"
-                element={
-                  <ProtectedRoute>
-                    <PurchaseSuccess />
-                  </ProtectedRoute>
-                } 
+                element={<PurchaseSuccess />}
               />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>

@@ -13,7 +13,8 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const userRoutes = require('./routes/user');
-const paymentRoutes = require('./routes/payment');
+const stripePayRoutes = require('./routes/stripePay');
+const stripeWebhookRoutes = require('./routes/stripeWebhook');
 const { authenticateToken } = require('./middleware/auth');
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3001';
@@ -38,6 +39,8 @@ app.use(cors({
 app.use(helmet());
 app.use(morgan('combined'));
 
+app.use('/api/webhook', stripeWebhookRoutes);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -61,7 +64,7 @@ mongoose.connect(uri)
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', authenticateToken, chatRoutes);
 app.use('/api/user', authenticateToken, userRoutes);
-app.use('/api/payment', authenticateToken, paymentRoutes);
+app.use('/api/pay/stripe', stripePayRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() });

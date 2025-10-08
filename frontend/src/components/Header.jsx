@@ -11,6 +11,12 @@ const Header = () => {
   const { user } = useSelector((state) => state.auth);
   const { notificationPanelOpen, notifications } = useSelector((state) => state.ui);
   
+  React.useEffect(() => {
+    if (user?.credits !== undefined) {
+      console.log(`🎯 Header: Credits updated to ${user.credits}`);
+    }
+  }, [user?.credits]);
+  
   const [userDropdownOpen, setUserDropdownOpen] = React.useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -41,6 +47,9 @@ const Header = () => {
           <span className="font-semibold" style={{ fontSize: '12px' }}>
             {user?.credits !== undefined && user?.credits !== null ? user.credits.toLocaleString() : '1,250'}
           </span>
+          {user?.credits !== undefined && (
+            <span className="ml-1 text-xs text-green-600">✓</span>
+          )}
         </div>
 
         <div className="relative">

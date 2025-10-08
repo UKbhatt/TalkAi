@@ -95,7 +95,7 @@ const ChatArea = () => {
         dispatch(setActiveConversation(conversationId));
       }
 
-      const userMessageResponse = await apiService.request(`/chat/conversations/${conversationId}/messages-user`, {
+      const userMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-user`, {
         method: 'POST',
         body: JSON.stringify({ content: messageContent })
       });
@@ -121,7 +121,7 @@ const ChatArea = () => {
 
       const aiResponse = await aiService.generateResponse(messageContent, conversationHistory);
 
-      const aiMessageResponse = await apiService.request(`/chat/conversations/${conversationId}/messages-ai`, {
+      const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
         method: 'POST',
         body: JSON.stringify({ content: aiResponse })
       });

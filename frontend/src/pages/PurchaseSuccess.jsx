@@ -15,34 +15,64 @@ const PurchaseSuccess = () => {
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
+    console.log('🔍 PurchaseSuccess page loaded');
+    
     if (sessionId) {
+      console.log('✅ Session ID found, calling verifyPayment...');
       verifyPayment(sessionId);
     } else {
+      console.log('❌ No session ID found in URL');
       setError('No session ID found');
       setLoading(false);
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('🔐 No auth token found, redirecting to signin...');
+        navigate('/signin');
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [navigate]);
+
   const verifyPayment = async (sessionId) => {
     try {
-      const response = await apiService.request(`/payment/verify-session/${sessionId}`);
-      setPayment(response.payment);
+      console.log('🔍 Verifying payment...');
+    
+      const response = await apiService.request(`/pay/stripe/verify-session/${sessionId}`);
       
-      if (response.user && response.user.credits !== undefined) {
-        dispatch(updateCredits(response.user.credits));
-        console.log(`Credits updated! New balance: ${response.user.credits}`);
+      console.log('✅ Payment verification successful');
+      
+      if (response.transaction) {
+        setPayment(response.transaction);
       }
 
-      try {
-        const userResponse = await apiService.getCurrentUser();
-        if (userResponse.user && userResponse.user.credits !== undefined) {
-          dispatch(updateCredits(userResponse.user.credits));
-        }
-      } catch (err) {
-        console.warn('Could not fetch updated user data:', err);
+      if (response.user) {
+        const { previousCredits, creditsAdded, credits: newCredits } = response.user;
+        
+        console.log('');
+        console.log('💰 CREDIT UPDATE SUMMARY:');
+        console.log('==========================');
+        console.log(`📊 Previous Credits: ${previousCredits}`);
+        console.log(`➕ Credits Added: +${creditsAdded}`);
+        console.log(`✨ New Credits: ${newCredits}`);
+        console.log('==========================');
+        console.log('');
+        
+        dispatch(updateCredits(newCredits));
+        
+        console.log('🎯 Redirecting to dashboard in 3 seconds...');
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 3000);
       }
+
     } catch (error) {
-      console.error('Payment verification error:', error);
+      console.error('❌ Payment verification error:', error);
       setError('Failed to verify payment. Please contact support.');
     } finally {
       setLoading(false);
@@ -70,10 +100,10 @@ const PurchaseSuccess = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Verification Error</h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => window.location.href = '/dashboard'}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
           >
-            Back to Dashboard
+            Go to Dashboard Now
           </button>
         </div>
       </div>
@@ -88,7 +118,8 @@ const PurchaseSuccess = () => {
         </div>
         
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment Successful!</h1>
-        <p className="text-gray-600 mb-8">Your credits have been added to your account</p>
+        <p className="text-gray-600 mb-4">Your credits have been added to your account</p>
+        <p className="text-blue-600 font-medium mb-8">Redirecting to dashboard in 3 seconds...</p>
 
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
           <div className="text-sm text-gray-600 mb-2">Credits Purchased</div>
@@ -115,10 +146,10 @@ const PurchaseSuccess = () => {
 
         <div className="space-y-3">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => window.location.href = '/dashboard'}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
           >
-            Start Chatting
+            Go to Dashboard Now
           </button>
           <button
             onClick={() => navigate('/purchase-credits')}

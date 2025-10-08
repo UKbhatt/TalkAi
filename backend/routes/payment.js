@@ -1,7 +1,9 @@
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const User = require('../models/User');
-const Payment = require('../models/Payment');
+const Transaction = require('../models/Transaction');
+const CreditLedger = require('../models/CreditLedger');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -50,7 +52,7 @@ router.get('/plans', (req, res) => {
 });
 
 
-router.post('/create-checkout-session', async (req, res) => {
+router.post('/create-checkout-session', authenticateToken, async (req, res) => {
   try {
     const { planId } = req.body;
 
@@ -81,8 +83,21 @@ router.post('/create-checkout-session', async (req, res) => {
       });
     }
 
+    const transaction = new Transaction({
+      userId: user._id,
+      planId: planId,
+      credits: plan.credits,
+      amount: plan.price / 100, 
+      currency: 'usd',
+      status: 'created',
+      pending: true
+    });
+
+    await transaction.save();
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+      client_reference_id: user._id.toString(),
       payment_method_types: ['card'],
       line_items: [
         {
@@ -90,11 +105,7 @@ router.post('/create-checkout-session', async (req, res) => {
             currency: 'usd',
             product_data: {
               name: plan.name,
-              description: plan.description,
-              metadata: {
-                credits: plan.credits.toString(),
-                planId: planId
-              }
+              description: plan.description
             },
             unit_amount: plan.price,
           },
@@ -107,9 +118,13 @@ router.post('/create-checkout-session', async (req, res) => {
       metadata: {
         userId: user._id.toString(),
         planId: planId,
-        credits: plan.credits.toString()
+        credits: plan.credits.toString(),
+        transactionId: transaction._id.toString()
       }
     });
+
+    transaction.sessionId = session.id;
+    await transaction.save();
 
     res.json({
       sessionId: session.id,
@@ -130,73 +145,30 @@ router.get('/verify-session/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-    if (session.payment_status !== 'paid') {
-      return res.status(400).json({
-        message: 'Payment not completed',
-        code: 'PAYMENT_NOT_COMPLETED'
+    const transaction = await Transaction.findOne({ sessionId });
+    if (!transaction) {
+      return res.status(404).json({
+        message: 'Transaction not found',
+        code: 'TRANSACTION_NOT_FOUND'
       });
     }
 
-    const userId = session.metadata.userId;
-    const planId = session.metadata.planId;
-    const credits = parseInt(session.metadata.credits);
-
-    const existingPayment = await Payment.findOne({
-      stripeSessionId: sessionId,
-      status: 'completed'
-    });
-
-    if (existingPayment) {
-      return res.json({
-        message: 'Payment already processed',
-        payment: existingPayment,
-        alreadyProcessed: true
-      });
-    }
-
-    const payment = new Payment({
-      userId: userId,
-      stripePaymentIntentId: session.payment_intent,
-      stripeSessionId: sessionId,
-      amount: session.amount_total / 100, 
-      currency: session.currency,
-      credits: credits,
-      plan: planId,
-      status: 'completed',
-      metadata: {
-        customerEmail: session.customer_details.email,
-        customerName: session.customer_details.name,
-        paymentMethod: 'card'
-      }
-    });
-
-    await payment.save();
-
-    const user = await User.findByIdAndUpdate(
-      userId,
-      {
-        $inc: {
-          credits: credits,
-          totalPurchased: credits
-        }
-      },
-      { new: true }
-    );
+    const user = await User.findById(transaction.userId);
 
     res.json({
-      message: 'Payment verified and credits added',
-      payment: {
-        id: payment._id,
-        credits: payment.credits,
-        amount: payment.amount,
-        plan: payment.plan,
-        createdAt: payment.createdAt
+      message: 'Payment status retrieved',
+      transaction: {
+        id: transaction._id,
+        planId: transaction.planId,
+        credits: transaction.credits,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        status: transaction.status,
+        pending: transaction.pending,
+        createdAt: transaction.createdAt
       },
       user: {
-        credits: user.credits,
-        totalPurchased: user.totalPurchased
+        credits: user.credits
       }
     });
 
@@ -210,32 +182,32 @@ router.get('/verify-session/:sessionId', async (req, res) => {
   }
 });
 
-router.get('/history', async (req, res) => {
+router.get('/history', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
 
-    const payments = await Payment.find({
+    const transactions = await Transaction.find({
       userId: req.user._id,
-      status: 'completed'
+      status: 'paid'
     })
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    const total = await Payment.countDocuments({
+    const total = await Transaction.countDocuments({
       userId: req.user._id,
-      status: 'completed'
+      status: 'paid'
     });
 
     res.json({
-      payments: payments.map(p => ({
-        id: p._id,
-        plan: p.plan,
-        credits: p.credits,
-        amount: p.amount,
-        currency: p.currency,
-        status: p.status,
-        createdAt: p.createdAt
+      transactions: transactions.map(t => ({
+        id: t._id,
+        planId: t.planId,
+        credits: t.credits,
+        amount: t.amount,
+        currency: t.currency,
+        status: t.status,
+        createdAt: t.createdAt
       })),
       pagination: {
         page: parseInt(page),
@@ -246,9 +218,9 @@ router.get('/history', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get payment history error:', error);
+    console.error('Get transaction history error:', error);
     res.status(500).json({
-      message: 'Failed to fetch payment history',
+      message: 'Failed to fetch transaction history',
       code: 'FETCH_HISTORY_ERROR'
     });
   }
@@ -267,25 +239,19 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  console.log(`🎯 Processing webhook event: ${event.type}`);
+
   switch (event.type) {
     case 'checkout.session.completed':
-      const session = event.data.object;
-      console.log('Checkout session completed:', session.id);
+      await handleCheckoutSessionCompleted(event.data.object);
       break;
 
-    case 'payment_intent.succeeded':
-      const paymentIntent = event.data.object;
-      console.log('PaymentIntent succeeded:', paymentIntent.id);
+    case 'checkout.session.expired':
+      await handleCheckoutSessionExpired(event.data.object);
       break;
 
     case 'payment_intent.payment_failed':
-      const failedPayment = event.data.object;
-      console.log('Payment failed:', failedPayment.id);
-      
-      await Payment.updateOne(
-        { stripePaymentIntentId: failedPayment.id },
-        { status: 'failed' }
-      );
+      await handlePaymentIntentFailed(event.data.object);
       break;
 
     default:
@@ -294,6 +260,107 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
   res.json({ received: true });
 });
+
+async function handleCheckoutSessionCompleted(session) {
+  console.log(`🎯 Webhook received: checkout.session.completed for session: ${session.id}`);
+  console.log(`💳 Payment Status: ${session.payment_status}`);
+  
+  try {
+    const userId = session.metadata.userId;
+    const planId = session.metadata.planId;
+    const credits = parseInt(session.metadata.credits);
+
+    console.log(`👤 User ID: ${userId}`);
+    console.log(`📦 Plan ID: ${planId}`);
+    console.log(`💰 Credits to add: ${credits}`);
+
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error(`❌ User not found: ${userId}`);
+      return;
+    }
+
+    console.log(`👤 Found user: ${user.email}`);
+    console.log(`💳 Current credits: ${user.credits}`);
+
+    const transaction = await Transaction.findOne({ sessionId: session.id });
+    if (!transaction) {
+      console.error(`❌ Transaction not found for session: ${session.id}`);
+      return;
+    }
+
+    if (transaction.status === 'paid') {
+      console.log(`⚠️ Transaction ${transaction._id} already processed - skipping`);
+      return;
+    }
+
+    console.log(`✅ Payment successful! Updating credits now...`);
+
+    transaction.status = 'paid';
+    transaction.pending = false;
+    transaction.metadata.stripePaymentIntentId = session.payment_intent;
+    transaction.metadata.customerEmail = session.customer_details?.email;
+    transaction.metadata.customerName = session.customer_details?.name;
+    await transaction.save();
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $inc: {
+          credits: credits,
+          totalPurchased: credits
+        }
+      },
+      { new: true }
+    );
+
+    const ledgerEntry = new CreditLedger({
+      userId: userId,
+      delta: credits,
+      reason: 'purchase',
+      refType: 'transaction',
+      refId: transaction._id,
+      description: `Purchased ${planId} pack - ${credits} credits`
+    });
+    await ledgerEntry.save();
+
+    console.log(`🎉 SUCCESS! Credits updated: ${user.credits} → ${updatedUser.credits} (+${credits})`);
+    console.log(`📝 Ledger entry created: ${ledgerEntry._id}`);
+    console.log(`💾 Transaction marked as paid: ${transaction._id}`);
+
+  } catch (error) {
+    console.error(`❌ Error processing checkout.session.completed:`, error);
+    console.error(error.stack);
+  }
+}
+
+async function handleCheckoutSessionExpired(session) {
+  console.log(`🎯 Processing checkout.session.expired for session: ${session.id}`);
+  
+  try {
+    await Transaction.updateOne(
+      { sessionId: session.id },
+      { status: 'expired', pending: false }
+    );
+    console.log(`✅ Transaction marked as expired: ${session.id}`);
+  } catch (error) {
+    console.error(`❌ Error processing checkout.session.expired:`, error);
+  }
+}
+
+async function handlePaymentIntentFailed(paymentIntent) {
+  console.log(`🎯 Processing payment_intent.payment_failed for PaymentIntent: ${paymentIntent.id}`);
+  
+  try {
+    await Transaction.updateOne(
+      { 'metadata.stripePaymentIntentId': paymentIntent.id },
+      { status: 'failed', pending: false }
+    );
+    console.log(`✅ Transaction marked as failed: ${paymentIntent.id}`);
+  } catch (error) {
+    console.error(`❌ Error processing payment_intent.payment_failed:`, error);
+  }
+}
 
 module.exports = router;
 

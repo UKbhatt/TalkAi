@@ -8,6 +8,7 @@ class AIService {
   async generateResponse(message, conversationHistory = []) {
     try {
       if (!this.apiKey) {
+        console.log('🤖 Using mock response (no API key configured)');
         return this.getMockResponse(message);
       }
 
@@ -80,6 +81,7 @@ class AIService {
   }
 
   getMockResponse(message) {
+    console.log('🎭 Generating mock response for:', message);
     const lowerMessage = message.toLowerCase();
     
     // Greetings

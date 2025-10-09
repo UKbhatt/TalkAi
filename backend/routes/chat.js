@@ -140,28 +140,52 @@ router.post('/conversations/:conversationId/messages-user', validateMessage, asy
       });
     }
 
-    const userMessage = new Message({
-      conversationId,
-      userId: req.user._id,
-      content,
-      role: 'user'
-    });
-
-    await userMessage.save();
-
-    conversation.metadata.messageCount += 1;
-    conversation.metadata.lastMessageAt = new Date();
-    await conversation.save();
-
     const previousCredits = req.user.credits;
     
-    await User.findByIdAndUpdate(req.user._id, {
-      $inc: { credits: -1 }
-    });
-
-    const updatedUser = await User.findById(req.user._id).select('credits');
+    const creditUpdateResult = await User.findByIdAndUpdate(
+      req.user._id, 
+      { $inc: { credits: -1 } },
+      { new: true }
+    ).select('credits');
     
-    console.log(`💳 Credit deduction: ${previousCredits} → ${updatedUser.credits} (-1)`);
+    if (!creditUpdateResult) {
+      console.error('❌ Failed to update user credits');
+      return res.status(500).json({
+        message: 'Failed to deduct credits',
+        code: 'CREDIT_UPDATE_FAILED'
+      });
+    }
+    
+    console.log(`💳 Credit deduction successful: ${previousCredits} → ${creditUpdateResult.credits} (-1)`);
+
+    // THEN: Save the user message
+    let userMessage;
+    try {
+      userMessage = new Message({
+        conversationId,
+        userId: req.user._id,
+        content,
+        role: 'user'
+      });
+
+      await userMessage.save();
+
+      conversation.metadata.messageCount += 1;
+      conversation.metadata.lastMessageAt = new Date();
+      await conversation.save();
+      
+    } catch (saveError) {
+      console.error('❌ Failed to save message, rolling back credits');
+      
+      await User.findByIdAndUpdate(
+        req.user._id, 
+        { $inc: { credits: 1 } }
+      );
+      
+      console.log(`💳 Credit rollback: ${creditUpdateResult.credits} → ${creditUpdateResult.credits + 1} (+1)`);
+      
+      throw saveError;
+    }
 
     res.json({
       message: {
@@ -170,7 +194,7 @@ router.post('/conversations/:conversationId/messages-user', validateMessage, asy
         role: userMessage.role,
         createdAt: userMessage.createdAt
       },
-      credits: updatedUser.credits
+      credits: creditUpdateResult.credits
     });
 
   } catch (error) {

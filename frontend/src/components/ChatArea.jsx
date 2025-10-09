@@ -95,15 +95,17 @@ const ChatArea = () => {
         dispatch(setActiveConversation(conversationId));
       }
 
-      // First, save user message and deduct credits
+      console.log(`💳 Attempting to deduct credits for message: "${messageContent}"`);
       const userMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-user`, {
         method: 'POST',
         body: JSON.stringify({ content: messageContent })
       });
 
       if (userMessageResponse.credits !== undefined) {
-        console.log(`💳 Frontend: Credits updated to ${userMessageResponse.credits}`);
+        console.log(`✅ Credit deduction successful: ${userMessageResponse.credits} credits remaining`);
         dispatch(updateCredits(userMessageResponse.credits));
+      } else {
+        console.warn('⚠️ No credit information in response');
       }
 
       dispatch(setMessages(messages.filter(m => m.id !== tempUserMessage.id)));
@@ -123,7 +125,9 @@ const ChatArea = () => {
             content: msg.content
           }));
 
+        console.log('🤖 Generating AI response for:', messageContent);
         const aiResponse = await aiService.generateResponse(messageContent, conversationHistory);
+        console.log('🤖 AI response generated:', aiResponse.substring(0, 100) + '...');
 
         const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
           method: 'POST',
@@ -139,7 +143,6 @@ const ChatArea = () => {
 
       } catch (aiError) {
         console.error('AI response error:', aiError);
-        // Even if AI fails, credits were already deducted for the user message
         const fallbackResponse = aiService.getMockResponse(messageContent);
         
         const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
@@ -156,15 +159,25 @@ const ChatArea = () => {
       }
 
     } catch (error) {
-      console.error('Send message error:', error);
-      // If user message saving fails, credits won't be deducted (which is correct)
-      const errorMessage = {
-        id: 'error-' + Date.now(),
-        content: "I'm sorry, I'm having trouble responding right now. Please try again.",
-        role: 'assistant',
-        createdAt: new Date().toISOString()
-      };
-      dispatch(addMessage(errorMessage));
+      console.error('❌ Send message error:', error);
+      
+      if (error.message && error.message.includes('Insufficient credits')) {
+        const errorMessage = {
+          id: 'error-' + Date.now(),
+          content: "❌ Insufficient credits! Please purchase more credits to continue chatting.",
+          role: 'assistant',
+          createdAt: new Date().toISOString()
+        };
+        dispatch(addMessage(errorMessage));
+      } else {
+        const errorMessage = {
+          id: 'error-' + Date.now(),
+          content: "I'm sorry, I'm having trouble responding right now. Please try again.",
+          role: 'assistant',
+          createdAt: new Date().toISOString()
+        };
+        dispatch(addMessage(errorMessage));
+      }
     } finally {
       dispatch(setTyping(false));
     }

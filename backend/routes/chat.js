@@ -153,11 +153,15 @@ router.post('/conversations/:conversationId/messages-user', validateMessage, asy
     conversation.metadata.lastMessageAt = new Date();
     await conversation.save();
 
+    const previousCredits = req.user.credits;
+    
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { credits: -1 }
     });
 
     const updatedUser = await User.findById(req.user._id).select('credits');
+    
+    console.log(`💳 Credit deduction: ${previousCredits} → ${updatedUser.credits} (-1)`);
 
     res.json({
       message: {

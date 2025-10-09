@@ -95,12 +95,14 @@ const ChatArea = () => {
         dispatch(setActiveConversation(conversationId));
       }
 
+      // First, save user message and deduct credits
       const userMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-user`, {
         method: 'POST',
         body: JSON.stringify({ content: messageContent })
       });
 
       if (userMessageResponse.credits !== undefined) {
+        console.log(`💳 Frontend: Credits updated to ${userMessageResponse.credits}`);
         dispatch(updateCredits(userMessageResponse.credits));
       }
 
@@ -112,29 +114,50 @@ const ChatArea = () => {
         createdAt: userMessageResponse.message.createdAt
       }));
 
-      const conversationHistory = messages
-        .filter(m => m.id !== tempUserMessage.id)
-        .map(msg => ({
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content
+      // Now generate AI response (even if this fails, credits are already deducted)
+      try {
+        const conversationHistory = messages
+          .filter(m => m.id !== tempUserMessage.id)
+          .map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          }));
+
+        const aiResponse = await aiService.generateResponse(messageContent, conversationHistory);
+
+        const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
+          method: 'POST',
+          body: JSON.stringify({ content: aiResponse })
+        });
+
+        dispatch(addMessage({
+          id: aiMessageResponse.message.id,
+          content: aiMessageResponse.message.content,
+          role: 'assistant',
+          createdAt: aiMessageResponse.message.createdAt
         }));
 
-      const aiResponse = await aiService.generateResponse(messageContent, conversationHistory);
+      } catch (aiError) {
+        console.error('AI response error:', aiError);
+        // Even if AI fails, credits were already deducted for the user message
+        const fallbackResponse = aiService.getMockResponse(messageContent);
+        
+        const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
+          method: 'POST',
+          body: JSON.stringify({ content: fallbackResponse })
+        });
 
-      const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
-        method: 'POST',
-        body: JSON.stringify({ content: aiResponse })
-      });
-
-      dispatch(addMessage({
-        id: aiMessageResponse.message.id,
-        content: aiMessageResponse.message.content,
-        role: 'assistant',
-        createdAt: aiMessageResponse.message.createdAt
-      }));
+        dispatch(addMessage({
+          id: aiMessageResponse.message.id,
+          content: aiMessageResponse.message.content,
+          role: 'assistant',
+          createdAt: aiMessageResponse.message.createdAt
+        }));
+      }
 
     } catch (error) {
       console.error('Send message error:', error);
+      // If user message saving fails, credits won't be deducted (which is correct)
       const errorMessage = {
         id: 'error-' + Date.now(),
         content: "I'm sorry, I'm having trouble responding right now. Please try again.",

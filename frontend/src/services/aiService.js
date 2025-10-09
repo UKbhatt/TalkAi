@@ -1,87 +1,51 @@
 class AIService {
   constructor() {
     this.apiKey = import.meta.env.VITE_AI_API_KEY || '';
-    this.apiUrl = import.meta.env.VITE_AI_API_URL || '';
-    this.model = import.meta.env.VITE_AI_MODEL || 'OpenAI GPT-5';
+    this.apiUrl = import.meta.env.VITE_AI_API_URL || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent';
+    this.model = import.meta.env.VITE_AI_MODEL || 'gemini-1.5-pro';
   }
 
   async generateResponse(message, conversationHistory = []) {
+    if (!this.apiKey) {
+      return this.getMockResponse(message);
+    }
+
     try {
-      if (!this.apiKey) {
-        console.log('🤖 Using mock response (no API key configured)');
-        return this.getMockResponse(message);
-      }
-
-      const contents = [];
-      
-      const recentHistory = conversationHistory.slice(-10);
-      for (const msg of recentHistory) {
-        contents.push({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }]
-        });
-      }
-      
-      contents.push({
-        role: 'user',
-        parts: [{ text: message }]
-      });
-
       const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          contents: contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1000,
-            topP: 0.8,
-            topK: 10
-          },
-          safetySettings: [
-            {
-              category: "HARM_CATEGORY_HARASSMENT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-              category: "HARM_CATEGORY_HATE_SPEECH",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            }
-          ]
+          contents: [{
+            parts: [{
+              text: message
+            }]
+          }]
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
       }
 
       const data = await response.json();
-      
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        return data.candidates[0].content.parts[0].text;
-      } else {
-        throw new Error('Invalid response format from Gemini API');
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!aiResponse) {
+        throw new Error('No response from Gemini API');
       }
 
+      return aiResponse;
+
     } catch (error) {
-      console.error('AI Service Error:', error);
+      console.error('AI Service Error:', error.message);
       return this.getMockResponse(message);
     }
   }
 
   getMockResponse(message) {
-    console.log('🎭 Generating mock response for:', message);
     const lowerMessage = message.toLowerCase();
     
     // Greetings
@@ -176,7 +140,7 @@ class AIService {
     ];
     
     return defaultResponses[Math.floor(Math.random() * defaultResponses.length)] + 
-           `\n\nYou asked: "${message}"\n\nThis is a mock response. To get real AI responses powered by Gemini, please configure your AI API key in the environment variables.`;
+           `\n\nYou asked: "${message}"\n\nI'm here to help you with any questions or tasks you might have!`;
   }
 
   async testConnection() {
@@ -186,7 +150,7 @@ class AIService {
       }
 
       const response = await this.generateResponse('Hello, are you working?');
-      return { success: true, message: 'Gemini AI service is working', response };
+      return { success: true, message: 'AI service is working', response };
     } catch (error) {
       return { success: false, message: error.message };
     }

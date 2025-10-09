@@ -17,21 +17,33 @@ const stripePayRoutes = require('./routes/stripePay');
 const stripeWebhookRoutes = require('./routes/stripeWebhook');
 const { authenticateToken } = require('./middleware/auth');
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3001';
+const getFrontendOrigin = () => {
+  if (process.env.FRONTEND_ORIGIN) {
+    return process.env.FRONTEND_ORIGIN;
+  }
+  
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:5173';
+  }
+  
+  return '*';
+};
+
+const FRONTEND_ORIGIN = getFrontendOrigin();
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_ORIGIN,
+    origin: FRONTEND_ORIGIN === '*' ? true : FRONTEND_ORIGIN,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    credentials: true
+    credentials: FRONTEND_ORIGIN !== '*'
   }
 });
 
 app.use(cors({
-  origin: FRONTEND_ORIGIN,
-  credentials: true,
+  origin: FRONTEND_ORIGIN === '*' ? true : FRONTEND_ORIGIN,
+  credentials: FRONTEND_ORIGIN !== '*',
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization']
 }));

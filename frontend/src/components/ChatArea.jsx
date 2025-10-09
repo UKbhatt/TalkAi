@@ -95,17 +95,13 @@ const ChatArea = () => {
         dispatch(setActiveConversation(conversationId));
       }
 
-      console.log(`💳 Attempting to deduct credits for message: "${messageContent}"`);
-      const userMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-user`, {
+      const userMessageResponse = await apiService.request(`/chat/conversations/${conversationId}/messages-user`, {
         method: 'POST',
         body: JSON.stringify({ content: messageContent })
       });
 
       if (userMessageResponse.credits !== undefined) {
-        console.log(`✅ Credit deduction successful: ${userMessageResponse.credits} credits remaining`);
         dispatch(updateCredits(userMessageResponse.credits));
-      } else {
-        console.warn('⚠️ No credit information in response');
       }
 
       dispatch(setMessages(messages.filter(m => m.id !== tempUserMessage.id)));
@@ -125,11 +121,9 @@ const ChatArea = () => {
             content: msg.content
           }));
 
-        console.log('🤖 Generating AI response for:', messageContent);
         const aiResponse = await aiService.generateResponse(messageContent, conversationHistory);
-        console.log('🤖 AI response generated:', aiResponse.substring(0, 100) + '...');
 
-        const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
+        const aiMessageResponse = await apiService.request(`/chat/conversations/${conversationId}/messages-ai`, {
           method: 'POST',
           body: JSON.stringify({ content: aiResponse })
         });
@@ -145,7 +139,7 @@ const ChatArea = () => {
         console.error('AI response error:', aiError);
         const fallbackResponse = aiService.getMockResponse(messageContent);
         
-        const aiMessageResponse = await apiService.request(`/api/chat/conversations/${conversationId}/messages-ai`, {
+        const aiMessageResponse = await apiService.request(`/chat/conversations/${conversationId}/messages-ai`, {
           method: 'POST',
           body: JSON.stringify({ content: fallbackResponse })
         });
@@ -159,7 +153,7 @@ const ChatArea = () => {
       }
 
     } catch (error) {
-      console.error('❌ Send message error:', error);
+      console.error('Send message error:', error);
       
       if (error.message && error.message.includes('Insufficient credits')) {
         const errorMessage = {

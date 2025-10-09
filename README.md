@@ -1,5 +1,7 @@
 <h1>🗣️ TalkAI — Realtime AI Chat Application</h1>
 
+
+
 <p align="center">
   <a href="https://nodejs.org/"><img alt="Node" src="https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white"></a>
   <a href="https://expressjs.com/"><img alt="Express" src="https://img.shields.io/badge/Express.js-Server-000000?logo=express&logoColor=white"></a>
@@ -12,7 +14,7 @@
   <a href="https://github.com/UKbhatt/TalkAi/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/UKbhatt/TalkAi?style=social"></a>
 </p>
 
-<p align="center">💬 Chat with AI, manage conversations, and collaborate in realtime with typing indicators, presence, and notifications.</p>
+ ### Realtime AI Chat Application with Purchase credit functionality "IN THE DROPDOWN MENU OF PROFILE ICON"
 
 ---
 
@@ -26,6 +28,7 @@
 - 🎨 **UI/UX** — TailwindCSS, icons via `lucide-react`, dark mode-ready
 - 🛡️ **Security** — Helmet, CORS, rate-limit, input validation
 - 🧪 **DX** — Vite fast dev, ESLint, consistent scripts
+- 💳 Credits & Payments — Stripe Test Mode top-ups with pending transactions, webhook verification, and idempotent credit ledger
 
 ---
 ## 🌍 Live Demo / Testing
@@ -40,7 +43,6 @@ Once deployed, you can try the project here:
 You can use the following test credentials to explore the app:
 
 Email: admin13@gmail.com
-
 Password: Ad123456
 
 

@@ -45,12 +45,13 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
 
     console.log(`📝 Transaction created successfully`);
 
-    const successUrl = `http://localhost:5173/purchase-success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `http://localhost:5173/purchase-credits?canceled=true`;
+    const frontendUrl = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+    const successUrl = `${frontendUrl}/purchase-success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${frontendUrl}/purchase-credits?canceled=true`;
     
+    console.log(`🔗 Frontend Origin: ${frontendUrl}`);
     console.log(`🔗 Success URL: ${successUrl}`);
     console.log(`🔗 Cancel URL: ${cancelUrl}`);
-    console.log(`🔗 Frontend Origin: ${process.env.FRONTEND_ORIGIN}`);
     
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
